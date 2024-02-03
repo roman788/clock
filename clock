@@ -1,0 +1,69 @@
+import tkinter as tk
+from datetime import datetime, timedelta
+import pyttsx3
+
+class ClockApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Часы")
+
+        self.time_label = tk.Label(root, text="", font=("Arial", 18))
+        self.time_label.grid(row=0, column=1, columnspan=4)
+
+        self.timezone_var = tk.IntVar(value=0)
+        self.timezone_entry = tk.Entry(root, textvariable=self.timezone_var, font=("Arial", 10), width=4)
+        self.timezone_entry.grid(row=1, column=0, sticky=tk.E)
+
+        self.topmost_var = tk.IntVar()
+        self.topmost_checkbox = tk.Checkbutton(root, text="Up", variable=self.topmost_var, command=self.toggle_topmost, font=("Arial", 10))
+        self.topmost_checkbox.grid(row=1, column=1, sticky=tk.W)
+
+        self.tf_var = tk.StringVar(value="1")
+        self.tf_entry = tk.Entry(root, textvariable=self.tf_var, font=("Arial", 10), width=4)
+        self.tf_entry.grid(row=1, column=2, sticky=tk.W)
+
+        self.sound_checkbox_var = tk.IntVar()
+        self.sound_checkbox = tk.Checkbutton(root, text="♫", variable=self.sound_checkbox_var, font=("Arial", 10))
+        self.sound_checkbox.grid(row=1, column=3, sticky=tk.W)
+
+        self.remaining_time_label = tk.Label(root, text="", font=("Arial", 18))
+        self.remaining_time_label.grid(row=2, column=0, columnspan=4)
+
+        self.engine = pyttsx3.init()
+
+        self.update_time()
+
+    def update_time(self):
+        current_time = datetime.utcnow() + timedelta(hours=self.timezone_var.get())
+        formatted_time = current_time.strftime("%H:%M:%S")
+        self.time_label.config(text=formatted_time)
+
+        tf_minutes = int(self.tf_var.get())
+        start_of_hour = current_time.replace(minute=0, second=0, microsecond=0)
+        next_tf_start = start_of_hour + timedelta(minutes=(current_time.minute // tf_minutes + 1) * tf_minutes)
+        remaining_time = next_tf_start - current_time
+
+        remaining_time_str = "{:02d}:{:02d}".format(remaining_time.seconds // 60, remaining_time.seconds % 60)
+        self.remaining_time_label.config(text=remaining_time_str)
+
+        if remaining_time.seconds == 0 and self.sound_checkbox_var.get() == 1:
+            self.speak_time()
+
+        self.root.after(1000, self.update_time)
+
+    def speak_time(self):
+        current_time = datetime.utcnow() + timedelta(hours=self.timezone_var.get())
+        formatted_time = current_time.strftime("%H:%M")
+        self.engine.say(f"{formatted_time}")
+        self.engine.runAndWait()
+
+    def toggle_topmost(self):
+        if self.topmost_var.get() == 1:
+            self.root.attributes('-topmost', 1)
+        else:
+            self.root.attributes('-topmost', 0)
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = ClockApp(root)
+    root.mainloop()
