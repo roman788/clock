@@ -1,37 +1,49 @@
 import tkinter as tk
 from datetime import datetime, timedelta
 import pyttsx3
+import pickle
 
 class ClockApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Часы")
 
-        self.time_label = tk.Label(root, text="", font=("Arial", 18))
-        self.time_label.grid(row=0, column=1, columnspan=4)
+        # Загрузка сохраненных данных
+        self.load_saved_data()
 
-        self.timezone_var = tk.IntVar(value=0)
-        self.timezone_entry = tk.Entry(root, textvariable=self.timezone_var, font=("Arial", 10), width=4)
-        self.timezone_entry.grid(row=1, column=0, sticky=tk.E)
-
-        self.topmost_var = tk.IntVar()
-        self.topmost_checkbox = tk.Checkbutton(root, text="Up", variable=self.topmost_var, command=self.toggle_topmost, font=("Arial", 10))
-        self.topmost_checkbox.grid(row=1, column=1, sticky=tk.W)
-
-        self.tf_var = tk.StringVar(value="1")
-        self.tf_entry = tk.Entry(root, textvariable=self.tf_var, font=("Arial", 10), width=4)
-        self.tf_entry.grid(row=1, column=2, sticky=tk.W)
-
-        self.sound_checkbox_var = tk.IntVar()
-        self.sound_checkbox = tk.Checkbutton(root, text="♫", variable=self.sound_checkbox_var, font=("Arial", 10))
-        self.sound_checkbox.grid(row=1, column=3, sticky=tk.W)
+        # Инициализация размера и расположения окна
+        if 'window_geometry' in self.saved_data:
+            self.root.geometry(self.saved_data['window_geometry'])
+            self.root.attributes('-topmost', self.saved_data['topmost'])
 
         self.remaining_time_label = tk.Label(root, text="", font=("Arial", 18))
-        self.remaining_time_label.grid(row=2, column=0, columnspan=4)
+        self.remaining_time_label.grid(row=0, column=1, columnspan=4)
+
+        self.time_label = tk.Label(root, text="", font=("Arial", 18))
+        self.time_label.grid(row=1, column=0, columnspan=5)
+
+        self.timezone_var = tk.IntVar(value=self.saved_data.get('timezone', 0))
+        self.timezone_entry = tk.Entry(root, textvariable=self.timezone_var, font=("Arial", 10), width=4)
+        self.timezone_entry.grid(row=2, column=0, sticky=tk.E)
+
+        self.topmost_var = tk.IntVar(value=self.saved_data.get('topmost', 0))
+        self.topmost_checkbox = tk.Checkbutton(root, text="Up", variable=self.topmost_var, command=self.toggle_topmost, font=("Arial", 10))
+        self.topmost_checkbox.grid(row=2, column=1, sticky=tk.W)
+
+        self.tf_var = tk.StringVar(value=self.saved_data.get('tf', "1"))
+        self.tf_entry = tk.Entry(root, textvariable=self.tf_var, font=("Arial", 10), width=4)
+        self.tf_entry.grid(row=2, column=2, sticky=tk.W)
+
+        self.sound_checkbox_var = tk.IntVar(value=self.saved_data.get('sound_checkbox', 0))
+        self.sound_checkbox = tk.Checkbutton(root, text="♫", variable=self.sound_checkbox_var, font=("Arial", 10))
+        self.sound_checkbox.grid(row=2, column=3, sticky=tk.W)
 
         self.engine = pyttsx3.init()
 
         self.update_time()
+
+        # Добавим обработчик закрытия окна
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def update_time(self):
         current_time = datetime.utcnow() + timedelta(hours=self.timezone_var.get())
@@ -47,14 +59,14 @@ class ClockApp:
         self.remaining_time_label.config(text=remaining_time_str)
 
         if remaining_time.seconds == 0 and self.sound_checkbox_var.get() == 1:
-            self.speak_time()
+            self.root.after(2000, self.speak_time)  # Запускаем голосовое воспроизведение через 2 секунды
 
         self.root.after(1000, self.update_time)
 
     def speak_time(self):
         current_time = datetime.utcnow() + timedelta(hours=self.timezone_var.get())
         formatted_time = current_time.strftime("%H:%M")
-        self.engine.say(f"{formatted_time}")
+        self.engine.say(f"Сейчас {formatted_time}")
         self.engine.runAndWait()
 
     def toggle_topmost(self):
@@ -62,6 +74,34 @@ class ClockApp:
             self.root.attributes('-topmost', 1)
         else:
             self.root.attributes('-topmost', 0)
+
+    def on_close(self):
+        # Сохранение данных перед закрытием
+        self.save_data()
+
+        self.root.destroy()
+
+    def save_data(self):
+        self.saved_data['timezone'] = self.timezone_var.get()
+        self.saved_data['topmost'] = self.topmost_var.get()
+        self.saved_data['tf'] = self.tf_var.get()
+        self.saved_data['sound_checkbox'] = self.sound_checkbox_var.get()
+        self.saved_data['window_geometry'] = self.root.geometry()
+
+        with open("saved_data.pkl", "wb") as file:
+            pickle.dump(self.saved_data, file)
+
+    def load_saved_data(self):
+        self.saved_data = {'timezone': 0, 'topmost': 0, 'tf': "1", 'sound_checkbox': 0}
+
+        try:
+            with open("saved_data.pkl", "rb") as file:
+                saved_data = pickle.load(file)
+
+            self.saved_data.update(saved_data)
+
+        except FileNotFoundError:
+            pass  # Если файл не найден, просто игнорируем
 
 if __name__ == "__main__":
     root = tk.Tk()
