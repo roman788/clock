@@ -66,7 +66,7 @@ class ClockApp:
     def speak_time(self):
         current_time = datetime.utcnow() + timedelta(hours=self.timezone_var.get())
         formatted_time = current_time.strftime("%H:%M")
-        self.engine.say(f"Сейчас {formatted_time}")
+        self.engine.say(f"{formatted_time}")
         self.engine.runAndWait()
 
     def toggle_topmost(self):
